@@ -1,11 +1,16 @@
 #include <iostream>
 #include <conio.h>  // For _kbhit() and _getch()
 #include <windows.h> // For Sleep() and system("cls")
+#include <vector>
+#include <cstdlib>  // For rand() and srand()
+#include <ctime>    // For time()
 
 class Game {
 public:
-    Game() : score(0), running(true), pacmanX(6), pacmanY(6) {
+    Game() : score(0), running(true), pacmanX(1), pacmanY(1), lives(3) {
+        srand(time(0));  // Seed for random number generation
         initMap();
+        initGhosts();
     }
 
     void init() {
@@ -24,6 +29,8 @@ public:
             for (int j = 0; j < width; j++) {
                 if (i == pacmanY && j == pacmanX) {
                     std::cout << 'O';  // Pac-Man's visible character
+                } else if (isGhost(i, j)) {
+                    std::cout << 'G';  // Ghost's visible character
                 } else {
                     std::cout << map[i][j];  // Render the map
                 }
@@ -31,7 +38,7 @@ public:
             std::cout << std::endl;
         }
 
-        std::cout << "Score: " << score << std::endl;
+        std::cout << "Score: " << score << " Lives: " << lives << std::endl;
     }
 
     void handleInput() {
@@ -45,8 +52,8 @@ public:
     }
 
     void update() {
-        // Add any updates to game logic here
-        // For example, we could increase the score every few seconds, etc.
+        moveGhosts();
+        checkCollisions();
         Sleep(100);  // Small delay for smooth game rendering
     }
 
@@ -55,27 +62,35 @@ public:
     }
 
 private:
-    static const int width = 20;   // Increased map width
-    static const int height = 10;  // Increased map height
+    static const int width = 21;   // Increased map width
+    static const int height = 11;  // Increased map height
     char map[height][width];       // Game map
 
     int pacmanX, pacmanY;  // Pac-Man's position on the map
     int score;             // Current score
+    int lives;             // Number of lives
     bool running;          // Game running flag
+
+    struct Ghost {
+        int x, y;
+    };
+
+    std::vector<Ghost> ghosts;
 
     void initMap() {
         // Filling the map with walls and empty spaces
         const char* tempMap[height] = {
-            "####################",
-            "#..........#.......#",
-            "#.#######..#......#.",
-            "#.#.....#..#......#.",
-            "#.#.###.#..#######.#",
-            "#...#P#....#.....#.#",
-            "#.#######..#.#####.#",
-            "#..........#.......#",
-            "####################",
-            "####################"
+            "#####################",
+            "#........#..........#",
+            "#.###.###.#.#########",
+            "#.#...#...#.........#",
+            "#.#.###.###.###.###.#",
+            "#...#...#...#...#...#",
+            "###.###.###.###.###.#",
+            "#........#...#...#...#",
+            "#.###.###.###.###.###",
+            "#...................#",
+            "#####################"
         };
 
         // Initialize the map array
@@ -86,8 +101,22 @@ private:
         }
     }
 
+    void initGhosts() {
+        ghosts.push_back({9, 9});
+        ghosts.push_back({9, 1});
+        ghosts.push_back({1, 9});
+    }
+
+    bool isGhost(int y, int x) {
+        for (const auto& ghost : ghosts) {
+            if (ghost.x == x && ghost.y == y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     void move(char direction) {
-        // Move Pac-Man based on the user input
         int newX = pacmanX;
         int newY = pacmanY;
 
@@ -106,9 +135,46 @@ private:
 
         // Check if the new position is valid (not a wall)
         if (map[newY][newX] != '#') {
-            pacmanX = newX;  // Move Pac-Man to the new position
+            pacmanX = newX;
             pacmanY = newY;
-            score++;  // Increase score for each valid move
+            if (map[newY][newX] == '.') {
+                score += 10;  // Increase score for eating dots
+                map[newY][newX] = ' ';  // Remove the dot
+            }
+        }
+    }
+
+    void moveGhosts() {
+        for (auto& ghost : ghosts) {
+            int direction = rand() % 4;  // Random direction
+            int newX = ghost.x;
+            int newY = ghost.y;
+
+            switch (direction) {
+                case 0: newY--; break;  // Up
+                case 1: newY++; break;  // Down
+                case 2: newX--; break;  // Left
+                case 3: newX++; break;  // Right
+            }
+
+            if (map[newY][newX] != '#') {
+                ghost.x = newX;
+                ghost.y = newY;
+            }
+        }
+    }
+
+    void checkCollisions() {
+        for (const auto& ghost : ghosts) {
+            if (ghost.x == pacmanX && ghost.y == pacmanY) {
+                lives--;
+                if (lives <= 0) {
+                    running = false;
+                } else {
+                    pacmanX = 1;
+                    pacmanY = 1;
+                }
+            }
         }
     }
 };
